@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { fetchDashboardData, computeSummary } from "@/lib/clickup-server";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 300;
 
 export async function GET() {
   try {
@@ -11,10 +10,9 @@ export async function GET() {
     const summary = computeSummary(data.projects, unreadAlerts);
     return NextResponse.json(summary);
   } catch (err) {
-    console.error("[API /dashboard/summary] Error:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch dashboard summary" },
-      { status: 500 }
-    );
+    const message =
+      err instanceof Error ? err.message : "Unknown error";
+    console.error("[API /dashboard/summary] Error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

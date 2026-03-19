@@ -11,7 +11,15 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    // Try to extract the server-side error message
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (body.error) detail = body.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(detail);
   }
   return res.json();
 }
