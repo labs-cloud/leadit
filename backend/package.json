@@ -1,0 +1,25 @@
+{
+  "name": "leadit-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "cors": "^2.8.5",
+    "@supabase/supabase-js": "^2.45.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/express": "^4.17.0",
+    "@types/cors": "^2.8.0",
+    "@types/node": "^20.14.0",
+    "@types/node-cron": "^3.0.0",
+    "tsx": "^4.16.0"
+  }
+}
