@@ -27,15 +27,31 @@ interface AlertsSidebarProps {
 
 function AlertIcon({ type, source }: { type: string; source: string }) {
   if (source === "whatsapp") {
-    return <MessageCircle className="h-4 w-4 text-purple-600" />;
+    return (
+      <div className="p-1.5 rounded-lg bg-purple-50">
+        <MessageCircle className="h-3.5 w-3.5 text-purple-600" />
+      </div>
+    );
   }
   switch (type) {
     case "critical":
-      return <AlertCircle className="h-4 w-4 text-red-600" />;
+      return (
+        <div className="p-1.5 rounded-lg bg-red-50">
+          <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+        </div>
+      );
     case "warning":
-      return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+      return (
+        <div className="p-1.5 rounded-lg bg-amber-50">
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+        </div>
+      );
     default:
-      return <Info className="h-4 w-4 text-blue-600" />;
+      return (
+        <div className="p-1.5 rounded-lg bg-blue-50">
+          <Info className="h-3.5 w-3.5 text-blue-600" />
+        </div>
+      );
   }
 }
 
@@ -50,43 +66,53 @@ function AlertItem({
 
   return (
     <div
-      className={`p-3 rounded-lg border-l-4 ${getAlertColor(alert.type)} ${
-        !alert.is_read ? "font-medium" : "opacity-75"
+      className={`p-3 rounded-xl border-l-[3px] transition-all hover:shadow-sm ${getAlertColor(alert.type)} ${
+        !alert.is_read ? "" : "opacity-60"
       }`}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
         <AlertIcon type={alert.type} source={alert.source} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-1">
-            <p className="text-sm leading-tight">{alert.title}</p>
+            <p className={`text-sm leading-tight ${!alert.is_read ? "font-semibold" : ""}`}>
+              {alert.title}
+            </p>
             {!alert.is_read && (
-              <span className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-600" />
+              <span className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-500 animate-pulse-soft" />
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}
-            {" · "}
-            <span className="capitalize">{alert.source}</span>
-          </p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <p className="text-[11px] text-muted-foreground">
+              {formatDistanceToNow(new Date(alert.created_at), {
+                addSuffix: true,
+              })}
+            </p>
+            <span className="text-muted-foreground/30">|</span>
+            <Badge variant="outline" className="text-[9px] h-4 px-1.5 capitalize font-normal">
+              {alert.source}
+            </Badge>
+          </div>
 
           {expanded && alert.description && (
-            <p className="text-xs mt-2 leading-relaxed">{alert.description}</p>
+            <p className="text-xs mt-2 leading-relaxed text-muted-foreground bg-white/50 rounded-lg p-2">
+              {alert.description}
+            </p>
           )}
 
           <div className="flex items-center gap-1 mt-2">
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs"
+              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
               onClick={() => setExpanded(!expanded)}
             >
               {expanded ? (
                 <>
-                  <ChevronUp className="h-3 w-3 mr-1" /> Less
+                  <ChevronUp className="h-3 w-3 mr-0.5" /> Less
                 </>
               ) : (
                 <>
-                  <ChevronDown className="h-3 w-3 mr-1" /> More
+                  <ChevronDown className="h-3 w-3 mr-0.5" /> Details
                 </>
               )}
             </Button>
@@ -96,7 +122,7 @@ function AlertItem({
                 href={alert.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                className="inline-flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium"
               >
                 <ExternalLink className="h-3 w-3" /> Open
               </a>
@@ -106,10 +132,10 @@ function AlertItem({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs ml-auto"
+                className="h-6 px-2 text-[11px] ml-auto text-muted-foreground hover:text-emerald-600"
                 onClick={() => onMarkRead(alert.id)}
               >
-                <Check className="h-3 w-3 mr-1" /> Read
+                <Check className="h-3 w-3 mr-0.5" /> Done
               </Button>
             )}
           </div>
@@ -121,38 +147,44 @@ function AlertItem({
 
 export function AlertsSidebar({ alerts, onMarkRead }: AlertsSidebarProps) {
   const unreadCount = alerts.filter((a) => !a.is_read).length;
-  const criticalCount = alerts.filter((a) => a.type === "critical" && !a.is_read).length;
+  const criticalCount = alerts.filter(
+    (a) => a.type === "critical" && !a.is_read
+  ).length;
 
   const sortedAlerts = [...alerts].sort((a, b) => {
-    // Unread first
     if (a.is_read !== b.is_read) return a.is_read ? 1 : -1;
-    // Critical first
     const priority = { critical: 0, warning: 1, info: 2 };
     const pDiff =
       (priority[a.type as keyof typeof priority] ?? 2) -
       (priority[b.type as keyof typeof priority] ?? 2);
     if (pDiff !== 0) return pDiff;
-    // Newest first
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return (
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   });
 
   return (
-    <Card className="h-full">
+    <Card className="h-full border-0 shadow-md bg-white/80 backdrop-blur-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between">
+        <CardTitle className="text-base flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Alerts
+            <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 relative">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full text-[8px] text-white flex items-center justify-center font-bold">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <span>Alerts</span>
           </div>
           <div className="flex gap-1.5">
             {criticalCount > 0 && (
-              <Badge variant="destructive" className="text-xs">
+              <Badge
+                variant="destructive"
+                className="text-[10px] animate-pulse-soft"
+              >
                 {criticalCount} critical
-              </Badge>
-            )}
-            {unreadCount > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {unreadCount} new
               </Badge>
             )}
           </div>
@@ -162,8 +194,18 @@ export function AlertsSidebar({ alerts, onMarkRead }: AlertsSidebarProps) {
         <ScrollArea className="h-[calc(100vh-220px)] px-4 pb-4">
           <div className="space-y-2">
             {sortedAlerts.map((alert) => (
-              <AlertItem key={alert.id} alert={alert} onMarkRead={onMarkRead} />
+              <AlertItem
+                key={alert.id}
+                alert={alert}
+                onMarkRead={onMarkRead}
+              />
             ))}
+            {sortedAlerts.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Bell className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">No alerts</p>
+              </div>
+            )}
           </div>
         </ScrollArea>
       </CardContent>

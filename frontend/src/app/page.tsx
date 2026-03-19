@@ -17,7 +17,15 @@ import type {
   DashboardSummary,
   ProjectPhase,
 } from "@/lib/types";
-import { Building2, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Building2,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
+  Clock,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 
 function computeLocalSummary(
   projects: Project[],
@@ -99,12 +107,10 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData(true);
@@ -127,33 +133,46 @@ export default function Dashboard() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Loading dashboard from ClickUp...
-          </p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="relative mx-auto mb-6 w-16 h-16">
+            <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping" />
+            <div className="relative rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 shadow-lg shadow-blue-500/25">
+              <Building2 className="h-8 w-8 text-white" />
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">
+            Lead It Builders
+          </h2>
+          <div className="flex items-center justify-center gap-2 text-blue-300">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <p className="text-sm">Loading dashboard from ClickUp...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Error state (with no data)
+  // Error state
   if (error && projects.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold mb-2">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md animate-fade-in">
+          <div className="mx-auto mb-6 w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+            <AlertCircle className="h-8 w-8 text-red-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">
             Failed to load dashboard
           </h2>
-          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+            {error}
+          </p>
           <button
             onClick={() => {
               setIsLoading(true);
               fetchData();
             }}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm"
+            className="px-6 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-400 text-sm font-medium transition-colors shadow-lg shadow-blue-500/25"
           >
             Try Again
           </button>
@@ -163,45 +182,64 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[hsl(var(--background))]">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3">
-          <div className="flex items-center justify-between">
+      <header className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 sticky top-0 z-50 shadow-lg shadow-black/10">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="bg-primary rounded-lg p-2">
+              <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-2 shadow-lg shadow-blue-500/25">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold">Lead It Builders</h1>
-                <p className="text-xs text-muted-foreground">
+                <h1 className="text-base font-bold text-white tracking-tight">
+                  Lead It Builders
+                </h1>
+                <p className="text-[11px] text-blue-300/80 font-medium">
                   Executive Dashboard
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {error && (
-                <span className="text-xs text-red-500 hidden sm:inline">
-                  Refresh failed
+            <div className="flex items-center gap-4">
+              {/* Connection status */}
+              <div className="hidden sm:flex items-center gap-1.5">
+                {error ? (
+                  <WifiOff className="h-3.5 w-3.5 text-red-400" />
+                ) : (
+                  <Wifi className="h-3.5 w-3.5 text-emerald-400" />
+                )}
+                <span
+                  className={`text-[11px] font-medium ${error ? "text-red-400" : "text-emerald-400"}`}
+                >
+                  {error ? "Offline" : "Live"}
                 </span>
-              )}
+              </div>
+
+              {/* Divider */}
+              <div className="hidden sm:block w-px h-5 bg-white/10" />
+
+              {/* Last updated */}
               {lastRefresh && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  Updated:{" "}
-                  {lastRefresh.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
+                <div className="hidden sm:flex items-center gap-1.5 text-slate-400">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">
+                    {lastRefresh.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
               )}
+
+              {/* Refresh button */}
               <button
                 onClick={handleRefresh}
-                className="p-2 rounded-md hover:bg-muted transition-colors"
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors group"
                 disabled={isRefreshing}
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 text-slate-400 group-hover:text-white transition-colors ${isRefreshing ? "animate-spin" : ""}`}
                 />
               </button>
             </div>
@@ -215,32 +253,49 @@ export default function Dashboard() {
           {/* Left Content */}
           <div className="flex-1 min-w-0 space-y-6">
             {/* Module 1: Portfolio Health */}
-            <PortfolioHealth summary={summary} />
+            <div className="animate-slide-up">
+              <PortfolioHealth summary={summary} />
+            </div>
 
             {/* Module 4: Construction Timeline */}
-            <ConstructionTimeline projects={projects} />
+            <div className="animate-slide-up" style={{ animationDelay: "50ms" }}>
+              <ConstructionTimeline projects={projects} />
+            </div>
 
             {/* Module 3: Project Cards Grid */}
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Active Projects</h2>
+            <div className="animate-slide-up" style={{ animationDelay: "100ms" }}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Active Projects</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {projects.length} total across all phases
+                  </p>
+                </div>
+              </div>
               <ProjectGrid projects={projects} />
             </div>
 
             {/* Module 5: Team Workload */}
             {teamMembers.length > 0 && (
-              <TeamWorkload members={teamMembers} />
+              <div className="animate-slide-up" style={{ animationDelay: "150ms" }}>
+                <TeamWorkload members={teamMembers} />
+              </div>
             )}
 
             {/* Module 6: Financial Summary */}
-            <FinancialSummary projects={projects} />
+            <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
+              <FinancialSummary projects={projects} />
+            </div>
 
             {/* Module 7: Activity Feed */}
-            <ActivityFeed activities={activity} />
+            <div className="animate-slide-up" style={{ animationDelay: "250ms" }}>
+              <ActivityFeed activities={activity} />
+            </div>
           </div>
 
           {/* Right Sidebar - Module 2: Alerts */}
           <div className="hidden lg:block w-80 flex-shrink-0">
-            <div className="sticky top-[73px]">
+            <div className="sticky top-[80px]">
               <AlertsSidebar
                 alerts={alerts}
                 onMarkRead={handleMarkAlertRead}
@@ -249,7 +304,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Mobile Alerts (shown below on smaller screens) */}
+        {/* Mobile Alerts */}
         <div className="lg:hidden mt-6">
           <AlertsSidebar alerts={alerts} onMarkRead={handleMarkAlertRead} />
         </div>
