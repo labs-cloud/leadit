@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { PortfolioHealth } from "@/components/dashboard/portfolio-health";
-import { AlertsSidebar } from "@/components/dashboard/alerts-sidebar";
-import { ProjectGrid } from "@/components/dashboard/project-grid";
+import { KPICards } from "@/components/dashboard/kpi-cards";
+import { OverviewTables } from "@/components/dashboard/overview-tables";
+import { ProjectTable } from "@/components/dashboard/project-table";
 import { ConstructionTimeline } from "@/components/dashboard/construction-timeline";
 import { TeamWorkload } from "@/components/dashboard/team-workload";
-import { FinancialSummary } from "@/components/dashboard/financial-summary";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { api } from "@/lib/api";
 import type {
@@ -22,9 +21,7 @@ import {
   RefreshCw,
   AlertCircle,
   Loader2,
-  Clock,
-  Wifi,
-  WifiOff,
+  Search,
 } from "lucide-react";
 
 function computeLocalSummary(
@@ -68,6 +65,8 @@ function computeLocalSummary(
   };
 }
 
+type Tab = "overview" | "projects" | "timeline" | "team" | "activity";
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -77,6 +76,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
 
   const fetchData = useCallback(async (showRefreshSpinner = false) => {
     if (showRefreshSpinner) setIsRefreshing(true);
@@ -118,35 +118,33 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const handleRefresh = () => {
-    fetchData(true);
-  };
-
-  const handleMarkAlertRead = (id: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, is_read: true } : a))
-    );
-  };
-
   const summary = computeLocalSummary(projects, alerts);
+
+  const pendingPermits = projects.reduce(
+    (s, p) => s + (p.total_permits - p.approved_permits),
+    0
+  );
+  const projectsAtRisk = projects.filter(
+    (p) => p.phase !== "complete" && (p.overdue_tasks > 0 || p.health_score < 60)
+  ).length;
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center animate-fade-in">
-          <div className="relative mx-auto mb-6 w-16 h-16">
-            <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping" />
-            <div className="relative rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 shadow-lg shadow-blue-500/25">
-              <Building2 className="h-8 w-8 text-white" />
+          <div className="relative mx-auto mb-6 w-14 h-14">
+            <div className="absolute inset-0 rounded-xl bg-blue-500/10 animate-ping" />
+            <div className="relative rounded-xl bg-blue-600/20 border border-blue-500/20 p-3.5">
+              <Building2 className="h-7 w-7 text-blue-400" />
             </div>
           </div>
-          <h2 className="text-lg font-semibold text-white mb-2">
+          <h2 className="text-base font-semibold text-foreground mb-2">
             Lead It Builders
           </h2>
-          <div className="flex items-center justify-center gap-2 text-blue-300">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <p className="text-sm">Loading dashboard from ClickUp...</p>
+            <p className="text-sm">Syncing with ClickUp...</p>
           </div>
         </div>
       </div>
@@ -156,15 +154,15 @@ export default function Dashboard() {
   // Error state
   if (error && projects.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md animate-fade-in">
-          <div className="mx-auto mb-6 w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
-            <AlertCircle className="h-8 w-8 text-red-400" />
+          <div className="mx-auto mb-6 w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <AlertCircle className="h-7 w-7 text-red-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white mb-2">
+          <h2 className="text-base font-semibold text-foreground mb-2">
             Failed to load dashboard
           </h2>
-          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
             {error}
           </p>
           <button
@@ -172,7 +170,7 @@ export default function Dashboard() {
               setIsLoading(true);
               fetchData();
             }}
-            className="px-6 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-400 text-sm font-medium transition-colors shadow-lg shadow-blue-500/25"
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 text-sm font-medium transition-colors"
           >
             Try Again
           </button>
@@ -181,133 +179,141 @@ export default function Dashboard() {
     );
   }
 
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "overview", label: "Overview" },
+    { key: "projects", label: "Projects" },
+    { key: "timeline", label: "Timeline" },
+    { key: "team", label: "Team" },
+    { key: "activity", label: "Activity" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 sticky top-0 z-50 shadow-lg shadow-black/10">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-2 shadow-lg shadow-blue-500/25">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-white tracking-tight">
-                  Lead It Builders
-                </h1>
-                <p className="text-[11px] text-blue-300/80 font-medium">
-                  Executive Dashboard
-                </p>
-              </div>
+      <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-6">
+          {/* Top row */}
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              <span>Dashboards</span>
+              <span>/</span>
+              <span className="text-foreground">Executive Overview</span>
             </div>
-
-            <div className="flex items-center gap-4">
-              {/* Connection status */}
-              <div className="hidden sm:flex items-center gap-1.5">
-                {error ? (
-                  <WifiOff className="h-3.5 w-3.5 text-red-400" />
-                ) : (
-                  <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-                )}
-                <span
-                  className={`text-[11px] font-medium ${error ? "text-red-400" : "text-emerald-400"}`}
-                >
-                  {error ? "Offline" : "Live"}
-                </span>
-              </div>
-
-              {/* Divider */}
-              <div className="hidden sm:block w-px h-5 bg-white/10" />
-
-              {/* Last updated */}
-              {lastRefresh && (
-                <div className="hidden sm:flex items-center gap-1.5 text-slate-400">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span className="text-[11px]">
-                    {lastRefresh.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-              )}
-
-              {/* Refresh button */}
-              <button
-                onClick={handleRefresh}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors group"
-                disabled={isRefreshing}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 text-slate-400 group-hover:text-white transition-colors ${isRefreshing ? "animate-spin" : ""}`}
-                />
+            <div className="flex items-center gap-3">
+              <button className="p-2 rounded-md hover:bg-white/5 transition-colors">
+                <Search className="h-4 w-4 text-muted-foreground" />
               </button>
+              {/* User avatar */}
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-bold text-white">
+                IA
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
-        <div className="flex gap-6">
-          {/* Left Content */}
-          <div className="flex-1 min-w-0 space-y-6">
-            {/* Module 1: Portfolio Health */}
-            <div className="animate-slide-up">
-              <PortfolioHealth summary={summary} />
+      {/* Title bar */}
+      <div className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-6 py-5">
+          <div className="flex items-end justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">
+                Executive Overview
+              </h1>
+              <p className="text-[12px] text-muted-foreground mt-1">
+                Isaac Adler
+                {lastRefresh && (
+                  <>
+                    {" \u00B7 Last synced "}
+                    {lastRefresh.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                    {" at "}
+                    {lastRefresh.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </>
+                )}
+                {error && (
+                  <span className="text-red-400 ml-2">
+                    \u00B7 Sync failed
+                  </span>
+                )}
+              </p>
             </div>
-
-            {/* Module 4: Construction Timeline */}
-            <div className="animate-slide-up" style={{ animationDelay: "50ms" }}>
-              <ConstructionTimeline projects={projects} />
-            </div>
-
-            {/* Module 3: Project Cards Grid */}
-            <div className="animate-slide-up" style={{ animationDelay: "100ms" }}>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Active Projects</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {projects.length} total across all phases
-                  </p>
-                </div>
-              </div>
-              <ProjectGrid projects={projects} />
-            </div>
-
-            {/* Module 5: Team Workload */}
-            {teamMembers.length > 0 && (
-              <div className="animate-slide-up" style={{ animationDelay: "150ms" }}>
-                <TeamWorkload members={teamMembers} />
-              </div>
-            )}
-
-            {/* Module 6: Financial Summary */}
-            <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
-              <FinancialSummary projects={projects} />
-            </div>
-
-            {/* Module 7: Activity Feed */}
-            <div className="animate-slide-up" style={{ animationDelay: "250ms" }}>
-              <ActivityFeed activities={activity} />
-            </div>
-          </div>
-
-          {/* Right Sidebar - Module 2: Alerts */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <div className="sticky top-[80px]">
-              <AlertsSidebar
-                alerts={alerts}
-                onMarkRead={handleMarkAlertRead}
-              />
+            <div className="flex items-center gap-2">
+              <button className="px-3.5 py-1.5 rounded-md bg-white/5 border border-[hsl(var(--border))] text-[12px] font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors">
+                Filter
+              </button>
+              <button className="px-3.5 py-1.5 rounded-md bg-white/5 border border-[hsl(var(--border))] text-[12px] font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors">
+                Export
+              </button>
+              <button
+                onClick={() => fetchData(true)}
+                disabled={isRefreshing}
+                className="px-3.5 py-1.5 rounded-md bg-blue-600 text-[12px] font-medium text-white hover:bg-blue-500 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Alerts */}
-        <div className="lg:hidden mt-6">
-          <AlertsSidebar alerts={alerts} onMarkRead={handleMarkAlertRead} />
+      {/* Main content */}
+      <main className="max-w-[1440px] mx-auto px-5 sm:px-6 py-5 space-y-5">
+        {/* KPI Cards */}
+        <KPICards
+          summary={summary}
+          pendingPermits={pendingPermits}
+          projectsAtRisk={projectsAtRisk}
+        />
+
+        {/* Tab Navigation */}
+        <div className="border-b border-[hsl(var(--border))]">
+          <nav className="flex gap-0">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "text-blue-400 border-blue-400"
+                    : "text-muted-foreground border-transparent hover:text-foreground hover:border-white/20"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
+
+        {/* Tab Content */}
+        {activeTab === "overview" && (
+          <>
+            <OverviewTables projects={projects} alerts={alerts} />
+            <ProjectTable projects={projects} />
+          </>
+        )}
+
+        {activeTab === "projects" && <ProjectTable projects={projects} />}
+
+        {activeTab === "timeline" && (
+          <ConstructionTimeline projects={projects} />
+        )}
+
+        {activeTab === "team" && teamMembers.length > 0 && (
+          <TeamWorkload members={teamMembers} />
+        )}
+
+        {activeTab === "activity" && <ActivityFeed activities={activity} />}
       </main>
     </div>
   );
