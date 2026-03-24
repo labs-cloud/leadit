@@ -3,25 +3,20 @@
 import React, { useState, useMemo } from "react";
 import { Project } from "@/lib/types";
 import { getPhaseLabel } from "@/lib/utils";
-import { getProjectStatus, StatusBadge, ColHeader, SectionHeader } from "./overview-tables";
+import {
+  getProjectStatus,
+  StatusBadge,
+  ColHeader,
+  SectionHeader,
+} from "./overview-tables";
 import { Search, X, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ProjectTableProps {
   projects: Project[];
+  onOpenProject?: (p: Project) => void;
 }
 
-const AVATAR_COLORS = [
-  "bg-blue-600",
-  "bg-violet-600",
-  "bg-emerald-600",
-  "bg-amber-600",
-  "bg-rose-600",
-  "bg-cyan-600",
-  "bg-indigo-600",
-  "bg-fuchsia-600",
-];
-
-export function ProjectTable({ projects }: ProjectTableProps) {
+export function ProjectTable({ projects, onOpenProject }: ProjectTableProps) {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
 
@@ -87,14 +82,15 @@ export function ProjectTable({ projects }: ProjectTableProps) {
             </tr>
           </thead>
           <tbody>
-            {displayProjects.map((project, index) => {
+            {displayProjects.map((project) => {
               const status = getProjectStatus(project);
               const budgetPct =
                 project.budget_total > 0
-                  ? Math.round((project.budget_spent / project.budget_total) * 100)
+                  ? Math.round(
+                      (project.budget_spent / project.budget_total) * 100
+                    )
                   : 0;
               const isOver = budgetPct > 100;
-              const colorIdx = index % AVATAR_COLORS.length;
 
               return (
                 <tr
@@ -107,13 +103,17 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                       {project.address.split(",")[0]}
                     </p>
                     <p className="text-[11px] text-muted-foreground">
-                      {project.address.split(",").slice(1).join(",").trim() || getPhaseLabel(project.phase)}
+                      {project.address.split(",").slice(1).join(",").trim() ||
+                        getPhaseLabel(project.phase)}
                     </p>
                   </td>
 
                   {/* Status */}
                   <td className="py-3 pr-4">
-                    <StatusBadge label={status.label} variant={status.variant} />
+                    <StatusBadge
+                      label={status.label}
+                      variant={status.variant}
+                    />
                   </td>
 
                   {/* Phase */}
@@ -144,7 +144,9 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                   <td className="py-3 pr-4 text-center">
                     <span
                       className={`text-sm font-semibold ${
-                        project.open_violations > 0 ? "text-red-400" : "text-muted-foreground"
+                        project.open_violations > 0
+                          ? "text-red-400"
+                          : "text-muted-foreground"
                       }`}
                     >
                       {project.open_violations}
@@ -163,12 +165,16 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                                 ? "bg-yellow-500"
                                 : "bg-emerald-500"
                           }`}
-                          style={{ width: `${Math.min(budgetPct, 100)}%` }}
+                          style={{
+                            width: `${Math.min(budgetPct, 100)}%`,
+                          }}
                         />
                       </div>
                       <span
                         className={`text-[11px] font-semibold ${
-                          isOver ? "text-red-400" : "text-muted-foreground"
+                          isOver
+                            ? "text-red-400"
+                            : "text-muted-foreground"
                         }`}
                       >
                         {budgetPct}%
@@ -178,7 +184,10 @@ export function ProjectTable({ projects }: ProjectTableProps) {
 
                   {/* Action */}
                   <td className="py-3 text-right">
-                    <button className="px-2.5 py-1 rounded text-[11px] font-medium bg-white/5 hover:bg-white/10 text-muted-foreground transition-colors">
+                    <button
+                      onClick={() => onOpenProject?.(project)}
+                      className="px-2.5 py-1 rounded text-[11px] font-medium bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
                       View
                     </button>
                   </td>
@@ -202,7 +211,8 @@ export function ProjectTable({ projects }: ProjectTableProps) {
               </>
             ) : (
               <>
-                <ChevronDown className="h-3.5 w-3.5" /> Show all {filtered.length} projects
+                <ChevronDown className="h-3.5 w-3.5" /> Show all{" "}
+                {filtered.length} projects
               </>
             )}
           </button>

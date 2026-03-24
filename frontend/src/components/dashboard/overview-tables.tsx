@@ -16,24 +16,30 @@ function SectionHeader({
   count?: number;
 }) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2.5">
-        <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-        <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
-        {count !== undefined && (
-          <span className="text-[11px] bg-white/5 text-muted-foreground px-2 py-0.5 rounded-full border border-[hsl(var(--border))]">
-            {count}
-          </span>
-        )}
-      </div>
+    <div className="flex items-center gap-2.5">
+      <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+      <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
+      {count !== undefined && (
+        <span className="text-[11px] bg-white/5 text-muted-foreground px-2 py-0.5 rounded-full border border-[hsl(var(--border))]">
+          {count}
+        </span>
+      )}
     </div>
   );
 }
 
 /* Column header */
-function ColHeader({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function ColHeader({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <th className={`text-[10px] font-semibold tracking-wider uppercase text-muted-foreground pb-3 text-left ${className}`}>
+    <th
+      className={`text-[10px] font-semibold tracking-wider uppercase text-muted-foreground pb-3 text-left ${className}`}
+    >
       {children}
     </th>
   );
@@ -45,7 +51,14 @@ function StatusBadge({
   variant,
 }: {
   label: string;
-  variant: "red" | "yellow" | "orange" | "green" | "blue" | "purple" | "gray";
+  variant:
+    | "red"
+    | "yellow"
+    | "orange"
+    | "green"
+    | "blue"
+    | "purple"
+    | "gray";
 }) {
   const colors: Record<string, string> = {
     red: "bg-red-500/15 text-red-400 border-red-500/20",
@@ -67,7 +80,15 @@ function StatusBadge({
 }
 
 /* Action button */
-function ActionBtn({ label, variant = "blue" }: { label: string; variant?: "blue" | "green" | "red" | "gray" }) {
+function ActionBtn({
+  label,
+  variant = "blue",
+  onClick,
+}: {
+  label: string;
+  variant?: "blue" | "green" | "red" | "gray";
+  onClick?: () => void;
+}) {
   const colors: Record<string, string> = {
     blue: "bg-blue-600 hover:bg-blue-500 text-white",
     green: "bg-emerald-600 hover:bg-emerald-500 text-white",
@@ -76,16 +97,41 @@ function ActionBtn({ label, variant = "blue" }: { label: string; variant?: "blue
   };
 
   return (
-    <button className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${colors[variant]}`}>
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${colors[variant]}`}
+    >
       {label}
     </button>
   );
 }
 
+/* ─── Utility ─── */
+function getProjectStatus(
+  p: Project
+): { label: string; variant: "red" | "yellow" | "orange" | "green" | "gray" } {
+  if (p.phase === "complete") return { label: "COMPLETED", variant: "green" };
+  if (p.open_violations > 0 && p.health_score < 40)
+    return { label: "STOP WORK", variant: "red" };
+  if (p.health_score < 50) return { label: "AT RISK", variant: "orange" };
+  if (p.overdue_tasks > 3) return { label: "DELAYED", variant: "yellow" };
+  return { label: "ACTIVE", variant: "green" };
+}
+
 /* ─── Projects At Risk Table ─── */
-function ProjectsAtRiskTable({ projects }: { projects: Project[] }) {
+function ProjectsAtRiskTable({
+  projects,
+  onOpenProject,
+}: {
+  projects: Project[];
+  onOpenProject?: (p: Project) => void;
+}) {
   const atRisk = projects
-    .filter((p) => p.phase !== "complete" && (p.overdue_tasks > 0 || p.health_score < 60))
+    .filter(
+      (p) =>
+        p.phase !== "complete" &&
+        (p.overdue_tasks > 0 || p.health_score < 60)
+    )
     .sort((a, b) => a.health_score - b.health_score)
     .slice(0, 6);
 
@@ -93,7 +139,13 @@ function ProjectsAtRiskTable({ projects }: { projects: Project[] }) {
 
   return (
     <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-5">
-      <SectionHeader color="bg-red-500" title="Projects At Risk" count={atRisk.length} />
+      <div className="mb-4">
+        <SectionHeader
+          color="bg-red-500"
+          title="Projects At Risk"
+          count={atRisk.length}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -111,11 +163,15 @@ function ProjectsAtRiskTable({ projects }: { projects: Project[] }) {
               return (
                 <tr
                   key={p.id}
-                  className="border-b border-[hsl(var(--border))]/50 last:border-0"
+                  className="border-b border-[hsl(var(--border))]/50 last:border-0 hover:bg-white/[0.02] transition-colors"
                 >
                   <td className="py-3 pr-4">
-                    <p className="text-sm font-medium text-foreground">{p.address.split(",")[0]}</p>
-                    <p className="text-[11px] text-muted-foreground">{getPhaseLabel(p.phase)}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {p.address.split(",")[0]}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {getPhaseLabel(p.phase)}
+                    </p>
                   </td>
                   <td className="py-3 pr-4">
                     <StatusBadge label={status.label} variant={status.variant} />
@@ -124,12 +180,17 @@ function ProjectsAtRiskTable({ projects }: { projects: Project[] }) {
                     {getPhaseLabel(p.phase)}
                   </td>
                   <td className="py-3 pr-4 text-right">
-                    <span className={`text-sm font-semibold ${p.overdue_tasks > 0 ? "text-red-400" : "text-foreground"}`}>
+                    <span
+                      className={`text-sm font-semibold ${p.overdue_tasks > 0 ? "text-red-400" : "text-foreground"}`}
+                    >
                       {p.overdue_tasks}
                     </span>
                   </td>
                   <td className="py-3 text-right">
-                    <ActionBtn label="View" />
+                    <ActionBtn
+                      label="View"
+                      onClick={() => onOpenProject?.(p)}
+                    />
                   </td>
                 </tr>
               );
@@ -142,7 +203,13 @@ function ProjectsAtRiskTable({ projects }: { projects: Project[] }) {
 }
 
 /* ─── Open Violations Table ─── */
-function ViolationsTable({ projects }: { projects: Project[] }) {
+function ViolationsTable({
+  projects,
+  onOpenProject,
+}: {
+  projects: Project[];
+  onOpenProject?: (p: Project) => void;
+}) {
   const withViolations = projects
     .filter((p) => p.open_violations > 0)
     .sort((a, b) => b.open_violations - a.open_violations)
@@ -152,7 +219,16 @@ function ViolationsTable({ projects }: { projects: Project[] }) {
 
   return (
     <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-5">
-      <SectionHeader color="bg-red-500" title="Open Violations" count={withViolations.reduce((s, p) => s + p.open_violations, 0)} />
+      <div className="mb-4">
+        <SectionHeader
+          color="bg-red-500"
+          title="Open Violations"
+          count={withViolations.reduce(
+            (s, p) => s + p.open_violations,
+            0
+          )}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -167,18 +243,30 @@ function ViolationsTable({ projects }: { projects: Project[] }) {
             {withViolations.map((p) => (
               <tr
                 key={p.id}
-                className="border-b border-[hsl(var(--border))]/50 last:border-0"
+                className="border-b border-[hsl(var(--border))]/50 last:border-0 hover:bg-white/[0.02] transition-colors"
               >
                 <td className="py-3 pr-4">
-                  <p className="text-sm font-medium text-foreground">{p.address.split(",")[0]}</p>
-                  <p className="text-[11px] text-muted-foreground">{getPhaseLabel(p.phase)}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {p.address.split(",")[0]}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {getPhaseLabel(p.phase)}
+                  </p>
                 </td>
                 <td className="py-3 pr-4 text-center">
-                  <span className="text-sm font-bold text-red-400">{p.open_violations}</span>
+                  <span className="text-sm font-bold text-red-400">
+                    {p.open_violations}
+                  </span>
                 </td>
-                <td className="py-3 pr-4 text-sm text-muted-foreground">{getPhaseLabel(p.phase)}</td>
+                <td className="py-3 pr-4 text-sm text-muted-foreground">
+                  {getPhaseLabel(p.phase)}
+                </td>
                 <td className="py-3 text-right">
-                  <ActionBtn label="ACK" variant="red" />
+                  <ActionBtn
+                    label="View"
+                    variant="red"
+                    onClick={() => onOpenProject?.(p)}
+                  />
                 </td>
               </tr>
             ))}
@@ -190,15 +278,29 @@ function ViolationsTable({ projects }: { projects: Project[] }) {
 }
 
 /* ─── Budget Overview Table ─── */
-function BudgetOverviewTable({ projects }: { projects: Project[] }) {
+function BudgetOverviewTable({
+  projects,
+  onOpenProject,
+}: {
+  projects: Project[];
+  onOpenProject?: (p: Project) => void;
+}) {
   const topBudget = [...projects]
     .filter((p) => p.budget_total > 0)
     .sort((a, b) => b.budget_total - a.budget_total)
     .slice(0, 6);
 
+  if (topBudget.length === 0) return null;
+
   return (
     <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-5">
-      <SectionHeader color="bg-emerald-500" title="Budget Overview \u2013 Top Projects" count={topBudget.length} />
+      <div className="mb-4">
+        <SectionHeader
+          color="bg-emerald-500"
+          title="Budget Overview \u2013 Top Projects"
+          count={topBudget.length}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -213,12 +315,15 @@ function BudgetOverviewTable({ projects }: { projects: Project[] }) {
           <tbody>
             {topBudget.map((p) => {
               const open = p.budget_total - p.budget_spent;
-              const pct = Math.round((p.budget_spent / p.budget_total) * 100);
+              const pct = Math.round(
+                (p.budget_spent / p.budget_total) * 100
+              );
               const isOver = pct > 100;
               return (
                 <tr
                   key={p.id}
-                  className="border-b border-[hsl(var(--border))]/50 last:border-0"
+                  className="border-b border-[hsl(var(--border))]/50 last:border-0 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                  onClick={() => onOpenProject?.(p)}
                 >
                   <td className="py-3 pr-4">
                     <p className="text-sm font-medium text-foreground">
@@ -231,15 +336,20 @@ function BudgetOverviewTable({ projects }: { projects: Project[] }) {
                   <td className="py-3 pr-4 text-right text-sm text-foreground">
                     {formatCurrency(p.budget_total)}
                   </td>
-                  <td className={`py-3 pr-4 text-right text-sm ${isOver ? "text-red-400" : "text-emerald-400"}`}>
+                  <td
+                    className={`py-3 pr-4 text-right text-sm ${isOver ? "text-red-400" : "text-emerald-400"}`}
+                  >
                     {formatCurrency(p.budget_spent)}
                   </td>
-                  <td className={`py-3 pr-4 text-right text-sm ${open < 0 ? "text-red-400" : "text-foreground"}`}>
-                    {open < 0 ? `-${formatCurrency(Math.abs(open))}` : formatCurrency(open)}
+                  <td
+                    className={`py-3 pr-4 text-right text-sm ${open < 0 ? "text-red-400" : "text-foreground"}`}
+                  >
+                    {open < 0
+                      ? `-${formatCurrency(Math.abs(open))}`
+                      : formatCurrency(open)}
                   </td>
                   <td className="py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      {/* Mini progress bar */}
                       <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
@@ -272,22 +382,35 @@ function BudgetOverviewTable({ projects }: { projects: Project[] }) {
 }
 
 /* ─── Alerts Table ─── */
-function AlertsTable({ alerts }: { alerts: Alert[] }) {
+function AlertsTable({
+  alerts,
+  onOpenAlert,
+  onMarkAlertRead,
+}: {
+  alerts: Alert[];
+  onOpenAlert?: (a: Alert) => void;
+  onMarkAlertRead?: (id: string) => void;
+}) {
   const sorted = [...alerts]
     .sort((a, b) => {
       if (a.is_read !== b.is_read) return a.is_read ? 1 : -1;
       const priority = { critical: 0, warning: 1, info: 2 };
-      return (priority[a.type as keyof typeof priority] ?? 2) - (priority[b.type as keyof typeof priority] ?? 2);
+      return (
+        (priority[a.type as keyof typeof priority] ?? 2) -
+        (priority[b.type as keyof typeof priority] ?? 2)
+      );
     })
-    .slice(0, 6);
+    .slice(0, 8);
 
   return (
     <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-5">
-      <SectionHeader
-        color="bg-amber-500"
-        title="Recent Alerts"
-        count={alerts.filter((a) => !a.is_read).length}
-      />
+      <div className="mb-4">
+        <SectionHeader
+          color="bg-amber-500"
+          title="Recent Alerts"
+          count={alerts.filter((a) => !a.is_read).length}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -295,15 +418,15 @@ function AlertsTable({ alerts }: { alerts: Alert[] }) {
               <ColHeader>Alert</ColHeader>
               <ColHeader>Type</ColHeader>
               <ColHeader>Source</ColHeader>
-              <ColHeader className="text-right">Time</ColHeader>
+              <ColHeader className="text-right">Action</ColHeader>
             </tr>
           </thead>
           <tbody>
             {sorted.map((alert) => (
               <tr
                 key={alert.id}
-                className={`border-b border-[hsl(var(--border))]/50 last:border-0 ${
-                  !alert.is_read ? "" : "opacity-50"
+                className={`border-b border-[hsl(var(--border))]/50 last:border-0 hover:bg-white/[0.02] transition-colors ${
+                  alert.is_read ? "opacity-50" : ""
                 }`}
               >
                 <td className="py-3 pr-4">
@@ -315,6 +438,11 @@ function AlertsTable({ alerts }: { alerts: Alert[] }) {
                       {alert.title}
                     </p>
                   </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 pl-3.5">
+                    {formatDistanceToNow(new Date(alert.created_at), {
+                      addSuffix: true,
+                    })}
+                  </p>
                 </td>
                 <td className="py-3 pr-4">
                   <StatusBadge
@@ -333,11 +461,34 @@ function AlertsTable({ alerts }: { alerts: Alert[] }) {
                     {alert.source}
                   </span>
                 </td>
-                <td className="py-3 text-right text-[11px] text-muted-foreground">
-                  {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}
+                <td className="py-3 text-right">
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <ActionBtn
+                      label="Open"
+                      variant="blue"
+                      onClick={() => onOpenAlert?.(alert)}
+                    />
+                    {!alert.is_read && (
+                      <ActionBtn
+                        label="Read"
+                        variant="gray"
+                        onClick={() => onMarkAlertRead?.(alert.id)}
+                      />
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
+            {sorted.length === 0 && (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="py-8 text-center text-sm text-muted-foreground"
+                >
+                  No alerts
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -346,9 +497,17 @@ function AlertsTable({ alerts }: { alerts: Alert[] }) {
 }
 
 /* ─── Permits Table ─── */
-function PermitsTable({ projects }: { projects: Project[] }) {
+function PermitsTable({
+  projects,
+  onOpenProject,
+}: {
+  projects: Project[];
+  onOpenProject?: (p: Project) => void;
+}) {
   const withPending = projects
-    .filter((p) => p.total_permits > 0 && p.approved_permits < p.total_permits)
+    .filter(
+      (p) => p.total_permits > 0 && p.approved_permits < p.total_permits
+    )
     .sort((a, b) => {
       const aRatio = a.approved_permits / a.total_permits;
       const bRatio = b.approved_permits / b.total_permits;
@@ -360,11 +519,16 @@ function PermitsTable({ projects }: { projects: Project[] }) {
 
   return (
     <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-5">
-      <SectionHeader
-        color="bg-violet-500"
-        title="Permits Pending"
-        count={withPending.reduce((s, p) => s + (p.total_permits - p.approved_permits), 0)}
-      />
+      <div className="mb-4">
+        <SectionHeader
+          color="bg-violet-500"
+          title="Permits Pending"
+          count={withPending.reduce(
+            (s, p) => s + (p.total_permits - p.approved_permits),
+            0
+          )}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -399,7 +563,7 @@ function PermitsTable({ projects }: { projects: Project[] }) {
               return (
                 <tr
                   key={p.id}
-                  className="border-b border-[hsl(var(--border))]/50 last:border-0"
+                  className="border-b border-[hsl(var(--border))]/50 last:border-0 hover:bg-white/[0.02] transition-colors"
                 >
                   <td className="py-3 pr-4">
                     <p className="text-sm font-medium text-foreground">
@@ -416,10 +580,17 @@ function PermitsTable({ projects }: { projects: Project[] }) {
                     {p.total_permits}
                   </td>
                   <td className="py-3 pr-4">
-                    <StatusBadge label={statusLabel} variant={statusVariant} />
+                    <StatusBadge
+                      label={statusLabel}
+                      variant={statusVariant}
+                    />
                   </td>
                   <td className="py-3 text-right">
-                    <ActionBtn label="View" variant="gray" />
+                    <ActionBtn
+                      label="View"
+                      variant="gray"
+                      onClick={() => onOpenProject?.(p)}
+                    />
                   </td>
                 </tr>
               );
@@ -431,39 +602,51 @@ function PermitsTable({ projects }: { projects: Project[] }) {
   );
 }
 
-/* ─── Utility ─── */
-function getProjectStatus(p: Project): { label: string; variant: "red" | "yellow" | "orange" | "green" | "gray" } {
-  if (p.phase === "complete") return { label: "COMPLETED", variant: "green" };
-  if (p.open_violations > 0 && p.health_score < 40) return { label: "STOP WORK", variant: "red" };
-  if (p.health_score < 50) return { label: "AT RISK", variant: "orange" };
-  if (p.overdue_tasks > 3) return { label: "DELAYED", variant: "yellow" };
-  return { label: "ACTIVE", variant: "green" };
+/* ─── Main Export ─── */
+interface OverviewTablesProps {
+  projects: Project[];
+  alerts: Alert[];
+  onOpenProject?: (p: Project) => void;
+  onOpenAlert?: (a: Alert) => void;
+  onMarkAlertRead?: (id: string) => void;
 }
 
-/* ─── Main Export ─── */
 export function OverviewTables({
   projects,
   alerts,
-}: {
-  projects: Project[];
-  alerts: Alert[];
-}) {
+  onOpenProject,
+  onOpenAlert,
+  onMarkAlertRead,
+}: OverviewTablesProps) {
   return (
     <div className="space-y-4 animate-slide-up">
       {/* Row 1: Projects At Risk + Violations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ProjectsAtRiskTable projects={projects} />
-        <ViolationsTable projects={projects} />
+        <ProjectsAtRiskTable
+          projects={projects}
+          onOpenProject={onOpenProject}
+        />
+        <ViolationsTable
+          projects={projects}
+          onOpenProject={onOpenProject}
+        />
       </div>
 
       {/* Row 2: Budget + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BudgetOverviewTable projects={projects} />
-        <AlertsTable alerts={alerts} />
+        <BudgetOverviewTable
+          projects={projects}
+          onOpenProject={onOpenProject}
+        />
+        <AlertsTable
+          alerts={alerts}
+          onOpenAlert={onOpenAlert}
+          onMarkAlertRead={onMarkAlertRead}
+        />
       </div>
 
-      {/* Row 3: Permits (if any) */}
-      <PermitsTable projects={projects} />
+      {/* Row 3: Permits */}
+      <PermitsTable projects={projects} onOpenProject={onOpenProject} />
     </div>
   );
 }

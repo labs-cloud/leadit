@@ -6,12 +6,15 @@ import type {
   TeamMember,
 } from "./types";
 
-async function fetchAPI<T>(endpoint: string): Promise<T> {
-  const res = await fetch(endpoint, {
+async function fetchAPI<T>(endpoint: string, forceRefresh = false): Promise<T> {
+  const url = forceRefresh
+    ? `${endpoint}${endpoint.includes("?") ? "&" : "?"}refresh=true`
+    : endpoint;
+
+  const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
-    // Try to extract the server-side error message
     let detail = res.statusText;
     try {
       const body = await res.json();
@@ -25,14 +28,18 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
 }
 
 export const api = {
-  getDashboardSummary: () =>
-    fetchAPI<DashboardSummary>("/api/dashboard/summary"),
+  getDashboardSummary: (refresh = false) =>
+    fetchAPI<DashboardSummary>("/api/dashboard/summary", refresh),
 
-  getProjects: () => fetchAPI<Project[]>("/api/projects"),
+  getProjects: (refresh = false) =>
+    fetchAPI<Project[]>("/api/projects", refresh),
 
-  getAlerts: () => fetchAPI<Alert[]>("/api/alerts"),
+  getAlerts: (refresh = false) =>
+    fetchAPI<Alert[]>("/api/alerts", refresh),
 
-  getActivity: () => fetchAPI<ActivityLogEntry[]>("/api/activity"),
+  getActivity: (refresh = false) =>
+    fetchAPI<ActivityLogEntry[]>("/api/activity", refresh),
 
-  getTeamWorkload: () => fetchAPI<TeamMember[]>("/api/team"),
+  getTeamWorkload: (refresh = false) =>
+    fetchAPI<TeamMember[]>("/api/team", refresh),
 };

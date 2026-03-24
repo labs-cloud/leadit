@@ -8,6 +8,7 @@ import { ConstructionTimeline } from "@/components/dashboard/construction-timeli
 import { TeamWorkload } from "@/components/dashboard/team-workload";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { api } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 import type {
   Project,
   Alert,
@@ -22,7 +23,11 @@ import {
   AlertCircle,
   Loader2,
   Search,
+  Download,
+  SlidersHorizontal,
 } from "lucide-react";
+
+const CLICKUP_WORKSPACE_URL = "https://app.clickup.com/9017603275";
 
 function computeLocalSummary(
   projects: Project[],
@@ -65,6 +70,46 @@ function computeLocalSummary(
   };
 }
 
+function exportToCSV(projects: Project[]) {
+  const headers = [
+    "Project",
+    "Phase",
+    "Health Score",
+    "Total Tasks",
+    "Completed Tasks",
+    "Overdue Tasks",
+    "Open Violations",
+    "Approved Permits",
+    "Total Permits",
+    "Budget Total",
+    "Budget Spent",
+    "Last Activity",
+  ];
+  const rows = projects.map((p) => [
+    `"${p.address}"`,
+    p.phase,
+    p.health_score,
+    p.total_tasks,
+    p.completed_tasks,
+    p.overdue_tasks,
+    p.open_violations,
+    p.approved_permits,
+    p.total_permits,
+    p.budget_total,
+    p.budget_spent,
+    p.last_activity_at || "",
+  ]);
+
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `leadit-projects-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 type Tab = "overview" | "projects" | "timeline" | "team" | "activity";
 
 export default function Dashboard() {
@@ -78,45 +123,75 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
-  const fetchData = useCallback(async (showRefreshSpinner = false) => {
-    if (showRefreshSpinner) setIsRefreshing(true);
-    setError(null);
+  const fetchData = useCallback(
+    async (forceRefresh = false) => {
+      if (forceRefresh) setIsRefreshing(true);
+      setError(null);
 
-    try {
-      const [projectsData, alertsData, activityData, teamData] =
-        await Promise.all([
-          api.getProjects(),
-          api.getAlerts(),
-          api.getActivity(),
-          api.getTeamWorkload(),
-        ]);
+      try {
+        const [projectsData, alertsData, activityData, teamData] =
+          await Promise.all([
+            api.getProjects(forceRefresh),
+            api.getAlerts(forceRefresh),
+            api.getActivity(forceRefresh),
+            api.getTeamWorkload(forceRefresh),
+          ]);
 
-      setProjects(projectsData);
-      setAlerts(alertsData);
-      setActivity(activityData);
-      setTeamMembers(teamData);
-      setLastRefresh(new Date());
-    } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load dashboard data"
-      );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+        setProjects(projectsData);
+        setAlerts(alertsData);
+        setActivity(activityData);
+        setTeamMembers(teamData);
+        setLastRefresh(new Date());
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load dashboard data"
+        );
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
   }, [fetchData]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchData(true);
+      fetchData(false);
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  const handleRefresh = () => fetchData(true);
+
+  const handleMarkAlertRead = (alertId: string) => {
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === alertId ? { ...a, is_read: true } : a))
+    );
+  };
+
+  const handleOpenProject = (project: Project) => {
+    window.open(
+      `${CLICKUP_WORKSPACE_URL}/v/li/${project.clickup_folder_id}`,
+      "_blank"
+    );
+  };
+
+  const handleOpenAlert = (alert: Alert) => {
+    if (alert.link) {
+      window.open(alert.link, "_blank");
+    } else if (alert.project_id) {
+      window.open(
+        `${CLICKUP_WORKSPACE_URL}/v/li/${alert.project_id}`,
+        "_blank"
+      );
+    }
+    handleMarkAlertRead(alert.id);
+  };
 
   const summary = computeLocalSummary(projects, alerts);
 
@@ -125,7 +200,9 @@ export default function Dashboard() {
     0
   );
   const projectsAtRisk = projects.filter(
-    (p) => p.phase !== "complete" && (p.overdue_tasks > 0 || p.health_score < 60)
+    (p) =>
+      p.phase !== "complete" &&
+      (p.overdue_tasks > 0 || p.health_score < 60)
   ).length;
 
   // Loading state
@@ -168,7 +245,7 @@ export default function Dashboard() {
           <button
             onClick={() => {
               setIsLoading(true);
-              fetchData();
+              fetchData(true);
             }}
             className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 text-sm font-medium transition-colors"
           >
@@ -179,12 +256,12 @@ export default function Dashboard() {
     );
   }
 
-  const tabs: { key: Tab; label: string }[] = [
+  const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "overview", label: "Overview" },
-    { key: "projects", label: "Projects" },
+    { key: "projects", label: "Projects", count: projects.length },
     { key: "timeline", label: "Timeline" },
-    { key: "team", label: "Team" },
-    { key: "activity", label: "Activity" },
+    { key: "team", label: "Team", count: teamMembers.length },
+    { key: "activity", label: "Activity", count: activity.length },
   ];
 
   return (
@@ -192,7 +269,6 @@ export default function Dashboard() {
       {/* Header */}
       <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
         <div className="max-w-[1440px] mx-auto px-5 sm:px-6">
-          {/* Top row */}
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
               <span>Dashboards</span>
@@ -200,10 +276,15 @@ export default function Dashboard() {
               <span className="text-foreground">Executive Overview</span>
             </div>
             <div className="flex items-center gap-3">
-              <button className="p-2 rounded-md hover:bg-white/5 transition-colors">
+              <a
+                href={`${CLICKUP_WORKSPACE_URL}/home`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-md hover:bg-white/5 transition-colors"
+                title="Open ClickUp"
+              >
                 <Search className="h-4 w-4 text-muted-foreground" />
-              </button>
-              {/* User avatar */}
+              </a>
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-bold text-white">
                 IA
               </div>
@@ -240,27 +321,29 @@ export default function Dashboard() {
                 )}
                 {error && (
                   <span className="text-red-400 ml-2">
-                    \u00B7 Sync failed
+                    {"\u00B7"} Sync failed
                   </span>
                 )}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="px-3.5 py-1.5 rounded-md bg-white/5 border border-[hsl(var(--border))] text-[12px] font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors">
-                Filter
-              </button>
-              <button className="px-3.5 py-1.5 rounded-md bg-white/5 border border-[hsl(var(--border))] text-[12px] font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors">
+              <button
+                onClick={() => exportToCSV(projects)}
+                className="px-3.5 py-1.5 rounded-md bg-white/5 border border-[hsl(var(--border))] text-[12px] font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+                title="Export projects to CSV"
+              >
+                <Download className="h-3.5 w-3.5" />
                 Export
               </button>
               <button
-                onClick={() => fetchData(true)}
+                onClick={handleRefresh}
                 disabled={isRefreshing}
                 className="px-3.5 py-1.5 rounded-md bg-blue-600 text-[12px] font-medium text-white hover:bg-blue-500 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 <RefreshCw
                   className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
                 />
-                Refresh
+                {isRefreshing ? "Syncing..." : "Refresh"}
               </button>
             </div>
           </div>
@@ -290,6 +373,11 @@ export default function Dashboard() {
                 }`}
               >
                 {tab.label}
+                {tab.count !== undefined && (
+                  <span className="ml-1.5 text-[10px] opacity-50">
+                    ({tab.count})
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -298,12 +386,26 @@ export default function Dashboard() {
         {/* Tab Content */}
         {activeTab === "overview" && (
           <>
-            <OverviewTables projects={projects} alerts={alerts} />
-            <ProjectTable projects={projects} />
+            <OverviewTables
+              projects={projects}
+              alerts={alerts}
+              onOpenProject={handleOpenProject}
+              onOpenAlert={handleOpenAlert}
+              onMarkAlertRead={handleMarkAlertRead}
+            />
+            <ProjectTable
+              projects={projects}
+              onOpenProject={handleOpenProject}
+            />
           </>
         )}
 
-        {activeTab === "projects" && <ProjectTable projects={projects} />}
+        {activeTab === "projects" && (
+          <ProjectTable
+            projects={projects}
+            onOpenProject={handleOpenProject}
+          />
+        )}
 
         {activeTab === "timeline" && (
           <ConstructionTimeline projects={projects} />
